@@ -305,13 +305,27 @@ async def list_tables(database_id: int) -> str:
 
 
 @mcp.tool
-async def get_table_fields(table_id: int) -> dict[str, Any]:
-    """Get all fields/columns in a table"""
+async def get_table_fields(table_id: int, limit: int = 20) -> dict[str, Any]:
+    """Get all fields/columns in a table
+    
+    Args:
+        table_id: The ID of the table
+        limit: Maximum number of fields to return (default: 20, set to 0 for no limit)
+    """
     try:
         result = await metabase_client.request("GET", f"/table/{table_id}/query_metadata")
+        
+        # Apply field limiting if limit > 0 and there are more fields than the limit
+        if limit > 0 and "fields" in result and len(result["fields"]) > limit:
+            total_fields = len(result["fields"])
+            result["fields"] = result["fields"][:limit]
+            result["_truncated"] = True
+            result["_total_fields"] = total_fields
+            result["_limit_applied"] = limit
+        
         return result
     except Exception as e:
-        logger.error(f"Error getting fields for table {table_id}: {e}")
+        logger.error(f"Error getting table fields for table {table_id}: {e}")
         raise
 
 
