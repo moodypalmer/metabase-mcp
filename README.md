@@ -15,10 +15,9 @@ A FastMCP (Model Context Protocol) server for Metabase, built with Python. This 
 
 ### Quick Start with uv (Recommended)
 
-1. **Install uv** (if not already installed):
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+1. **Install uv** if not already installed:
+Please refer to uv
+
 
 2. **Clone and setup**:
 ```bash
