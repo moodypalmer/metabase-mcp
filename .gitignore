@@ -1,0 +1,12 @@
+.env
+
+tests/
+
+examples/
+
+.venv/
+
+.ruff_cache/
+
+.pytest_cache/
+

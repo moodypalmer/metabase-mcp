@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "metabase": {
+      "url": "http://localhost:8000/sse",
+      "env": {
+        "METABASE_URL": "your-metabase-url-here",
+        "METABASE_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+} 
