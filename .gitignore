@@ -10,3 +10,4 @@ examples/
 
 .pytest_cache/
 
+.gitignore
