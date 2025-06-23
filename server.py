@@ -310,7 +310,7 @@ async def get_table_fields(table_id: int, limit: int = 20) -> dict[str, Any]:
     
     Args:
         table_id: The ID of the table
-        limit: Maximum number of fields to return (default: 20, set to 0 for no limit)
+        limit: Maximum number of fields to return (default: 20)
     """
     try:
         result = await metabase_client.request("GET", f"/table/{table_id}/query_metadata")
