@@ -101,6 +101,20 @@ uv run python scripts/install-cursor-sse.py 9000     # Custom port
 uv run python server.py --sse 8000
 ```
 
+### Claude Integration
+After running `uv sync`, you can find the Python executable at `/path/to/repo/.venv/bin/python`.
+To integrate with Claude, add or update the configuration file at `~/Library/Application\ Support/Claude/claude_desktop_config.json`:
+```json
+{
+    "mcpServers": {
+        "metabase-mcp-server": {
+            "command": "/path/to/repo/.venv/bin/python",
+            "args": ["/path/to/repo/server.py"]
+        }
+    }
+}
+```
+
 ## Available Tools
 
 - `list_databases`: List all databases in Metabase
