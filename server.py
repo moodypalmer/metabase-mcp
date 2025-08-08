@@ -341,25 +341,24 @@ def main():
         # Support multiple transport methods
         import sys
 
+        # Get host and port from environment variables
+        host = os.getenv("HOST", "0.0.0.0")
+        port = int(os.getenv("PORT", "8000"))
+
         # Check for transport argument
         transport = "stdio"  # default
-        port = 8000
-
-        if len(sys.argv) > 1:
-            if sys.argv[1] == "--sse":
-                transport = "sse"
-                if len(sys.argv) > 2:
-                    port = int(sys.argv[2])
-            elif sys.argv[1] == "--http":
-                transport = "streamable-http"
-                if len(sys.argv) > 2:
-                    port = int(sys.argv[2])
+        if "--sse" in sys.argv:
+            transport = "sse"
+        elif "--http" in sys.argv:
+            transport = "streamable-http"
+        elif "--stdio" in sys.argv:
+            transport = "stdio"
 
         logger.info(f"Starting Metabase MCP server with {transport} transport")
 
         if transport in ["sse", "streamable-http"]:
-            logger.info(f"Server will be available at http://localhost:{port}")
-            mcp.run(transport=transport, port=port)
+            logger.info(f"Server will be available at http://{host}:{port}")
+            mcp.run(transport=transport, host=host, port=port)
         else:
             mcp.run(transport=transport)
 

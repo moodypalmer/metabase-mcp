@@ -56,14 +56,20 @@ OR
 # STDIO transport (default)
 uv run python server.py
 
-# SSE transport on port 8000
+# SSE transport (uses HOST=0.0.0.0, PORT=8000 by default)
 uv run python server.py --sse
 
-# SSE transport on custom port
-uv run python server.py --sse 9000
-
-# HTTP transport on port 8000
+# HTTP transport (uses HOST=0.0.0.0, PORT=8000 by default)
 uv run python server.py --http
+
+# Custom host and port via environment variables
+HOST=localhost PORT=9000 uv run python server.py --sse
+HOST=192.168.1.100 PORT=8080 uv run python server.py --http
+
+# Set environment variables persistently
+export HOST=localhost
+export PORT=9000
+uv run python server.py --sse
 ```
 
 ### FastMCP CLI Integration
@@ -136,9 +142,10 @@ The server supports multiple transport methods:
 - **HTTP**: Standard HTTP for API access
 
 ```bash
-uv run python server.py          # STDIO (default)
-uv run python server.py --sse    # SSE on port 8000
-uv run python server.py --http   # HTTP on port 8000
+uv run python server.py                        # STDIO (default)
+uv run python server.py --sse                  # SSE (HOST=0.0.0.0, PORT=8000)
+uv run python server.py --http                 # HTTP (HOST=0.0.0.0, PORT=8000)
+HOST=localhost PORT=9000 uv run python server.py --sse   # Custom host/port
 ```
 
 ## Development
