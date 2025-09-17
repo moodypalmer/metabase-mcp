@@ -1,52 +1,82 @@
-# Metabase FastMCP Server
+# Metabase MCP Server 🚀
 
-A FastMCP (Model Context Protocol) server for Metabase, built with Python. This server provides tools to interact with Metabase databases, execute queries, manage cards, and work with collections.
+A high-performance Model Context Protocol (MCP) server for Metabase, built with FastMCP and Python. This server enables AI assistants like Claude and Cursor to interact seamlessly with your Metabase instance, providing powerful database analytics and visualization capabilities.
 
-## Features
+## ✨ Key Features
 
-- List and manage Metabase databases
-- Execute SQL queries and saved questions/cards
-- Create and manage cards (questions)
-- Work with collections
-- List tables and fields
-- Full authentication support (API Key or Session-based)
+### Database Operations
+- **List Databases**: Browse all configured Metabase databases
+- **Table Discovery**: Explore tables with metadata and descriptions
+- **Field Inspection**: Get detailed field/column information with smart pagination
 
-## Installation
+### Query & Analytics
+- **SQL Execution**: Run native SQL queries with parameter support
+- **Card Management**: Execute, create, and manage Metabase questions/cards
+- **Collection Organization**: Create and manage collections for better organization
 
-### Quick Start with uv (Recommended)
+### Authentication & Security
+- **API Key Support**: Secure authentication via Metabase API keys (recommended)
+- **Session-based Auth**: Alternative email/password authentication
+- **Environment Variables**: Secure credential management via `.env` files
 
-1. **Install uv** if not already installed:
-Please refer to uv
+## 🚀 Quick Start
 
+### Prerequisites
+- Python 3.12+
+- Metabase instance with API access
+- uv package manager (recommended) or pip
 
-2. **Clone and setup**:
+### Installation
+
+#### Using uv (Recommended)
 ```bash
-uv sync  # Install dependencies and create virtual environment
+# Install uv if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Clone the repository
+git clone https://github.com/yourusername/metabase-mcp.git
+cd metabase-mcp
+
+# Install dependencies
+uv sync
 ```
 
-3. **Configure environment**:
+#### Using pip
 ```bash
-cp .env.example .env
-# Edit .env with your Metabase configuration
-```
-
-### Alternative Installation (pip)
-
-```bash
+# Clone and install
+git clone https://github.com/yourusername/metabase-mcp.git
+cd metabase-mcp
 pip install -r requirements.txt
 ```
 
-## Configuration
+## ⚙️ Configuration
 
-Set the following environment variables in your `.env` file:
+Create a `.env` file with your Metabase credentials:
 
-- `METABASE_URL`: Your Metabase instance URL
-- `METABASE_API_KEY`: Your Metabase API key (preferred method)
+```bash
+cp .env.example .env
+```
 
-OR
+### Configuration Options
 
-- `METABASE_USER_EMAIL`: Your Metabase user email
-- `METABASE_PASSWORD`: Your Metabase password
+#### Option 1: API Key Authentication (Recommended)
+```env
+METABASE_URL=https://your-metabase-instance.com
+METABASE_API_KEY=your-api-key-here
+```
+
+#### Option 2: Email/Password Authentication
+```env
+METABASE_URL=https://your-metabase-instance.com
+METABASE_USER_EMAIL=your-email@example.com
+METABASE_PASSWORD=your-password
+```
+
+#### Optional: Custom Host/Port for SSE/HTTP
+```env
+HOST=localhost  # Default: 0.0.0.0
+PORT=9000      # Default: 8000
+```
 
 ## Usage
 
@@ -121,17 +151,32 @@ To integrate with Claude, add or update the configuration file at `~/Library/App
 }
 ```
 
-## Available Tools
+## 🛠️ Available Tools
 
-- `list_databases`: List all databases in Metabase
-- `list_cards`: List all questions/cards in Metabase  
-- `execute_card`: Execute a Metabase question/card and get results
-- `execute_query`: Execute a SQL query against a Metabase database
-- `create_card`: Create a new question/card in Metabase
-- `list_collections`: List all collections in Metabase
-- `create_collection`: Create a new collection in Metabase
-- `list_tables`: List all tables in a database
-- `get_table_fields`: Get all fields/columns in a table
+### Database Operations
+| Tool | Description |
+|------|------------|
+| `list_databases` | List all configured databases in Metabase |
+| `list_tables` | Get all tables in a specific database with metadata |
+| `get_table_fields` | Retrieve field/column information for a table |
+
+### Query Operations
+| Tool | Description |
+|------|------------|
+| `execute_query` | Execute native SQL queries with parameter support |
+| `execute_card` | Run saved Metabase questions/cards |
+
+### Card Management
+| Tool | Description |
+|------|------------|
+| `list_cards` | List all saved questions/cards |
+| `create_card` | Create new questions/cards with SQL queries |
+
+### Collection Management
+| Tool | Description |
+|------|------------|
+| `list_collections` | Browse all collections |
+| `create_collection` | Create new collections for organization |
 
 ## Transport Methods
 
@@ -148,49 +193,98 @@ uv run python server.py --http                 # HTTP (HOST=0.0.0.0, PORT=8000)
 HOST=localhost PORT=9000 uv run python server.py --sse   # Custom host/port
 ```
 
-## Development
+## 🧪 Development
 
-### Development Setup
+### Setup Development Environment
 
 ```bash
-# Install development dependencies (Python 3.12+)
+# Install with dev dependencies
 uv sync --group dev
 
-# Run tests
-uv run pytest
+# Or with pip
+pip install -r requirements-dev.txt
+```
 
-# Format and lint code
-uv run ruff check .          # Lint
-uv run ruff format .         # Format
-uv run black .               # Alternative formatter
-uv run isort .               # Import sorting
+### Code Quality
+
+```bash
+# Run linting
+uv run ruff check .
+
+# Format code
+uv run ruff format .
 
 # Type checking
 uv run mypy server.py
+
+# Run all tests
+uv run pytest -v
+
+# Run with coverage
+uv run pytest --cov=server --cov-report=html
 ```
 
 ### Validation
 
 ```bash
-# Validate installation
+# Validate server setup
 uv run python scripts/validate.py
 ```
 
-## Examples
+## 📚 Examples
 
-Check out the example files for usage patterns:
+### Query Examples
 
-- `examples/examples.py` - Basic usage examples
-- `examples/quick-start.py` - Quick start guide
-- `examples/sse-example.py` - SSE transport usage example
+```python
+# List all databases
+databases = await list_databases()
 
-## Files Overview
+# Execute a SQL query
+result = await execute_query(
+    database_id=1,
+    query="SELECT * FROM users LIMIT 10"
+)
 
-- `server.py` - Main FastMCP server
-- `pyproject.toml` - Modern Python project configuration
-- `scripts/install-cursor.py` - Cross-platform Cursor installation
-- `scripts/install-cursor-sse.py` - SSE-specific Cursor installation
-- `scripts/validate.py` - Installation validation
-- `examples/` - Usage examples and quick start guides
-- `tests/test_server.py` - Basic server tests
-- `config/cursor-config.json` - Example Cursor configuration 
+# Create and run a card
+card = await create_card(
+    name="Active Users Report",
+    database_id=1,
+    query="SELECT COUNT(*) FROM users WHERE active = true",
+    collection_id=2
+)
+```
+
+### Example Files
+- `examples/quick-start.py` - Getting started guide
+- `examples/examples.py` - Common usage patterns  
+- `examples/sse-example.py` - SSE transport demo
+
+## 📁 Project Structure
+
+```
+metabase-mcp/
+├── server.py                 # Main MCP server implementation
+├── pyproject.toml           # Project configuration and dependencies
+├── .env.example             # Environment variables template
+├── scripts/
+│   ├── install-cursor.py    # Cursor IDE installer
+│   ├── install-cursor-sse.py # SSE-specific installer
+│   └── validate.py          # Installation validator
+├── examples/                # Usage examples
+├── tests/                   # Test suite
+└── docs/                    # Additional documentation
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+MIT License - see LICENSE file for details
+
+## 🔗 Resources
+
+- [FastMCP Documentation](https://github.com/jlowin/fastmcp)
+- [Model Context Protocol](https://modelcontextprotocol.io/)
+- [Metabase API Documentation](https://www.metabase.com/docs/latest/api-documentation) 

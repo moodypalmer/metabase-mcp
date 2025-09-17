@@ -9,8 +9,9 @@ execute queries, manage cards, and work with collections.
 import asyncio
 import logging
 import os
+import sys
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 
 import httpx
 from dotenv import load_dotenv
@@ -123,10 +124,18 @@ class MetabaseClient:
 metabase_client = MetabaseClient()
 
 
-# Tool implementations
+# =============================================================================
+# Tool Definitions - Database Operations
+# =============================================================================
+
 @mcp.tool
 async def list_databases() -> dict[str, Any]:
-    """List all databases in Metabase"""
+    """
+    List all databases configured in Metabase.
+    
+    Returns:
+        A dictionary containing all available databases with their metadata.
+    """
     try:
         result = await metabase_client.request("GET", "/database")
         return result
@@ -136,8 +145,144 @@ async def list_databases() -> dict[str, Any]:
 
 
 @mcp.tool
+async def list_tables(database_id: int) -> str:
+    """
+    List all tables in a specific database.
+    
+    Args:
+        database_id: The ID of the database to query.
+    
+    Returns:
+        Formatted markdown table showing table details.
+    """
+    try:
+        result = await metabase_client.request("GET", f"/database/{database_id}/metadata")
+        
+        # Extract and format tables
+        tables = result.get("tables", [])
+        formatted_tables = [
+            {
+                "table_id": table.get("id"),
+                "display_name": table.get("display_name"),
+                "description": table.get("description") or "No description",
+                "entity_type": table.get("entity_type")
+            }
+            for table in tables
+        ]
+        
+        # Sort for better readability
+        formatted_tables.sort(key=lambda x: x.get("display_name", ""))
+        
+        # Generate markdown output
+        markdown_output = f"# Tables in Database {database_id}\n\n"
+        markdown_output += f"**Total Tables:** {len(formatted_tables)}\n\n"
+        
+        if not formatted_tables:
+            markdown_output += "*No tables found in this database.*\n"
+            return markdown_output
+        
+        # Create markdown table
+        markdown_output += "| Table ID | Display Name | Description | Entity Type |\n"
+        markdown_output += "|----------|--------------|-------------|--------------|\n"
+        
+        for table in formatted_tables:
+            table_id = table.get("table_id", "N/A")
+            display_name = table.get("display_name", "N/A")
+            description = table.get("description", "No description")
+            entity_type = table.get("entity_type", "N/A")
+            
+            # Escape pipe characters
+            description = description.replace("|", "\\|")
+            display_name = display_name.replace("|", "\\|")
+            
+            markdown_output += f"| {table_id} | {display_name} | {description} | {entity_type} |\n"
+        
+        return markdown_output
+        
+    except Exception as e:
+        logger.error(f"Error listing tables for database {database_id}: {e}")
+        raise
+
+
+@mcp.tool
+async def get_table_fields(table_id: int, limit: int = 20) -> dict[str, Any]:
+    """
+    Get all fields/columns in a specific table.
+    
+    Args:
+        table_id: The ID of the table.
+        limit: Maximum number of fields to return (default: 20).
+    
+    Returns:
+        Dictionary with field metadata, truncated if necessary.
+    """
+    try:
+        result = await metabase_client.request("GET", f"/table/{table_id}/query_metadata")
+        
+        # Apply field limiting
+        if limit > 0 and "fields" in result and len(result["fields"]) > limit:
+            total_fields = len(result["fields"])
+            result["fields"] = result["fields"][:limit]
+            result["_truncated"] = True
+            result["_total_fields"] = total_fields
+            result["_limit_applied"] = limit
+        
+        return result
+    except Exception as e:
+        logger.error(f"Error getting table fields for table {table_id}: {e}")
+        raise
+
+
+# =============================================================================
+# Tool Definitions - Query Operations
+# =============================================================================
+
+@mcp.tool
+async def execute_query(
+    database_id: int,
+    query: str,
+    native_parameters: Optional[list[dict[str, Any]]] = None
+) -> dict[str, Any]:
+    """
+    Execute a native SQL query against a Metabase database.
+    
+    Args:
+        database_id: The ID of the database to query.
+        query: The SQL query to execute.
+        native_parameters: Optional parameters for the query.
+    
+    Returns:
+        Query execution results.
+    """
+    try:
+        payload = {
+            "database": database_id,
+            "type": "native",
+            "native": {"query": query}
+        }
+
+        if native_parameters:
+            payload["native"]["parameters"] = native_parameters
+
+        result = await metabase_client.request("POST", "/dataset", json=payload)
+        return result
+    except Exception as e:
+        logger.error(f"Error executing query: {e}")
+        raise
+
+
+# =============================================================================
+# Tool Definitions - Card/Question Operations
+# =============================================================================
+
+@mcp.tool
 async def list_cards() -> dict[str, Any]:
-    """List all questions/cards in Metabase"""
+    """
+    List all saved questions/cards in Metabase.
+    
+    Returns:
+        Dictionary containing all cards with their metadata.
+    """
     try:
         result = await metabase_client.request("GET", "/card")
         return result
@@ -147,8 +292,20 @@ async def list_cards() -> dict[str, Any]:
 
 
 @mcp.tool
-async def execute_card(card_id: int, parameters: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Execute a Metabase question/card and get results"""
+async def execute_card(
+    card_id: int,
+    parameters: Optional[dict[str, Any]] = None
+) -> dict[str, Any]:
+    """
+    Execute a saved Metabase question/card and retrieve results.
+    
+    Args:
+        card_id: The ID of the card to execute.
+        parameters: Optional parameters for the card execution.
+    
+    Returns:
+        Card execution results.
+    """
     try:
         payload = {}
         if parameters:
@@ -162,33 +319,28 @@ async def execute_card(card_id: int, parameters: dict[str, Any] | None = None) -
 
 
 @mcp.tool
-async def execute_query(
-    database_id: int, query: str, native_parameters: list[dict[str, Any]] | None = None
-) -> dict[str, Any]:
-    """Execute a SQL query against a Metabase database"""
-    try:
-        payload = {"database": database_id, "type": "native", "native": {"query": query}}
-
-        if native_parameters:
-            payload["native"]["parameters"] = native_parameters
-
-        result = await metabase_client.request("POST", "/dataset", json=payload)
-        return result
-    except Exception as e:
-        logger.error(f"Error executing query: {e}")
-        raise
-
-
-@mcp.tool
 async def create_card(
     name: str,
     database_id: int,
     query: str,
-    description: str | None = None,
-    collection_id: int | None = None,
-    visualization_settings: dict[str, Any] | None = None,
+    description: Optional[str] = None,
+    collection_id: Optional[int] = None,
+    visualization_settings: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
-    """Create a new question/card in Metabase"""
+    """
+    Create a new question/card in Metabase.
+    
+    Args:
+        name: Name of the card.
+        database_id: ID of the database to query.
+        query: SQL query for the card.
+        description: Optional description.
+        collection_id: Optional collection to place the card in.
+        visualization_settings: Optional visualization configuration.
+    
+    Returns:
+        The created card object.
+    """
     try:
         payload = {
             "name": name,
@@ -214,9 +366,18 @@ async def create_card(
         raise
 
 
+# =============================================================================
+# Tool Definitions - Collection Operations
+# =============================================================================
+
 @mcp.tool
 async def list_collections() -> dict[str, Any]:
-    """List all collections in Metabase"""
+    """
+    List all collections in Metabase.
+    
+    Returns:
+        Dictionary containing all collections with their metadata.
+    """
     try:
         result = await metabase_client.request("GET", "/collection")
         return result
@@ -228,11 +389,22 @@ async def list_collections() -> dict[str, Any]:
 @mcp.tool
 async def create_collection(
     name: str,
-    description: str | None = None,
-    color: str | None = None,
-    parent_id: int | None = None,
+    description: Optional[str] = None,
+    color: Optional[str] = None,
+    parent_id: Optional[int] = None,
 ) -> dict[str, Any]:
-    """Create a new collection in Metabase"""
+    """
+    Create a new collection in Metabase.
+    
+    Args:
+        name: Name of the collection.
+        description: Optional description.
+        color: Optional color for the collection.
+        parent_id: Optional parent collection ID.
+    
+    Returns:
+        The created collection object.
+    """
     try:
         payload = {"name": name}
 
@@ -250,85 +422,6 @@ async def create_collection(
         raise
 
 
-@mcp.tool
-async def list_tables(database_id: int) -> str:
-    """List all tables in a database with formatted markdown output"""
-    try:
-        result = await metabase_client.request("GET", f"/database/{database_id}/metadata")
-        
-        # Extract tables from the metadata response
-        tables = result.get("tables", [])
-        
-        # Format tables with only the requested fields: table_id, display_name, description, entity_type
-        formatted_tables = []
-        for table in tables:
-            table_info = {
-                "table_id": table.get("id"),
-                "display_name": table.get("display_name"),
-                "description": table.get("description") or "No description",
-                "entity_type": table.get("entity_type")
-            }
-            formatted_tables.append(table_info)
-        
-        # Sort by display_name for better readability
-        formatted_tables.sort(key=lambda x: x.get("display_name", ""))
-        
-        # Generate markdown output
-        markdown_output = f"# Tables in Database {database_id}\n\n"
-        markdown_output += f"**Total Tables:** {len(formatted_tables)}\n\n"
-        
-        if not formatted_tables:
-            markdown_output += "*No tables found in this database.*\n"
-            return markdown_output
-        
-        # Create markdown table
-        markdown_output += "| Table ID | Display Name | Description | Entity Type |\n"
-        markdown_output += "|----------|--------------|-------------|--------------|\n"
-        
-        for table in formatted_tables:
-            table_id = table.get("table_id", "N/A")
-            display_name = table.get("display_name", "N/A")
-            description = table.get("description", "No description")
-            entity_type = table.get("entity_type", "N/A")
-            
-            # Escape pipe characters in content to prevent table formatting issues
-            description = description.replace("|", "\\|")
-            display_name = display_name.replace("|", "\\|")
-            
-            markdown_output += f"| {table_id} | {display_name} | {description} | {entity_type} |\n"
-        
-        return markdown_output
-        
-    except Exception as e:
-        logger.error(f"Error listing tables for database {database_id}: {e}")
-        raise
-
-
-@mcp.tool
-async def get_table_fields(table_id: int, limit: int = 20) -> dict[str, Any]:
-    """Get all fields/columns in a table
-    
-    Args:
-        table_id: The ID of the table
-        limit: Maximum number of fields to return (default: 20)
-    """
-    try:
-        result = await metabase_client.request("GET", f"/table/{table_id}/query_metadata")
-        
-        # Apply field limiting if limit > 0 and there are more fields than the limit
-        if limit > 0 and "fields" in result and len(result["fields"]) > limit:
-            total_fields = len(result["fields"])
-            result["fields"] = result["fields"][:limit]
-            result["_truncated"] = True
-            result["_total_fields"] = total_fields
-            result["_limit_applied"] = limit
-        
-        return result
-    except Exception as e:
-        logger.error(f"Error getting table fields for table {table_id}: {e}")
-        raise
-
-
 # Cleanup handler
 async def cleanup():
     """Clean up resources on shutdown"""
@@ -336,16 +429,20 @@ async def cleanup():
 
 
 def main():
-    """Main entry point for the server"""
+    """
+    Main entry point for the Metabase MCP server.
+    
+    Supports multiple transport methods:
+    - STDIO (default): For IDE integration
+    - SSE: Server-Sent Events for web apps
+    - HTTP: Standard HTTP for API access
+    """
     try:
-        # Support multiple transport methods
-        import sys
-
-        # Get host and port from environment variables
+        # Get configuration from environment
         host = os.getenv("HOST", "0.0.0.0")
         port = int(os.getenv("PORT", "8000"))
 
-        # Check for transport argument
+        # Parse transport argument
         transport = "stdio"  # default
         if "--sse" in sys.argv:
             transport = "sse"
@@ -356,6 +453,7 @@ def main():
 
         logger.info(f"Starting Metabase MCP server with {transport} transport")
 
+        # Run server with appropriate transport
         if transport in ["sse", "streamable-http"]:
             logger.info(f"Server will be available at http://{host}:{port}")
             mcp.run(transport=transport, host=host, port=port)
